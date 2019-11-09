@@ -1,0 +1,2 @@
+# triviality
+record some trivialities
