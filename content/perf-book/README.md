@@ -13,7 +13,7 @@
 
 ## 参考
 
-- [P0668R5: Revising the C++ memory model](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0668r5.html)
+- [P0668R5: Revising the C++ memory model](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0668r5.html)：待评价（大坑）
 - [[intro.races]](http://eel.is/c++draft/intro.races)：本质上阐述了偏序关系的概念，但似乎仍有些模糊
 - [[atomics.order]](http://eel.is/c++draft/atomics.order)
 
@@ -22,7 +22,7 @@
 <a id="1-4"></a>
 ## 1-4 Introduction
 
-<img src="assets/Table3-1.png" width="400"/>
+<img src="assets/Table3-1.png" width="480"/>
 
 - load tearing
   - 编译器用多个 load 表示一个 access
@@ -67,18 +67,65 @@
 <a id="9"></a>
 ## 9 Deferred Processing
 
-> 防止在获取引用计数时，并发地删除数据
+> 防止在获取引用（计数）时，并发地删除数据。   
+> 用足够小的开销，构建意义足够丰富的 *happens-before* 关系。   
 
 ### Hazard Pointer
 
+考虑这样一个场景：
+
+1. 一个容器内有共享资源，对外提供 `get(k)` 和 `remove(k)`，对于同一个元素来说，所有的 `get(k)` 和 `remove(k)` 应该保证是原子的，有 total order（*hash单链表CAS符合语义？*）。另一种情况是资源就只有固定数目的指针，这样只用CAS就trivial了。   
+2. 每个线程有一个 inused pool（**论文中是放在全局**），维护自己正在使用的资源handle，资源handle是通过 `get(k)` 获取的。这个 inused pool 允许其他线程读。   
+3. 若线程想释放一个资源，先 `remove(k)`，若成功，则在该资源保证不会被其他线程访问的前提下将其释放。（*优化：可以放入 retire list 中，这里假设每一轮都要尝试直接释放*）   
+
+现在要处理的就是③，当 `remove(k)` 成功后，何时可以安全释放资源？
+
+一个简单方法就是使用 rcu：`remove(k)` 之后调用 `synchronize_rcu() / call_rcu(...)`，这种情况连 inused pool 都不需要了。不过我们这里主要讨论基于每线程 inused pool 的方法：
+
+- 访问线程
+  - `get(k)`
+  - insert 到当前线程（或全局）的 inused pool
+  - `reget(k)` 决定是否访问
+      - 要保证一定查询的是原来那个元素，有可能发生一种情况：`remove(k)` 之后释放了资源，但是另一个资源重新加入容器，同样的 `k`，又恰好分配到这个地址，即ABA问题。也有可能发生ABA问题，但可以继续使用。
+- 删除线程
+  - `remove(k)`
+  - check 每个线程（或全局）的 inused pool
+  - （等待）释放
+      - 如果不想等待，那就存到 thread_local retire list，我们这里假设每轮都去尝试释放
+
+思路就是 check 每个线程的 inused pool，若没有则进行释放，若有则等待。现在考虑线程在 `get(k)` 和 加入自己的 inused pool 之间有可能发生遗漏，即另一个线程 check 完毕自己才把资源加入 inused pool。这时需要重新想容器中 `reget(k)` 该资源是否存在，若不存在，则放弃访问。事实上这要求如下2点：
+
+- `remove(k)` 要 *happens-before* `reget(k)`
+  - 这要求 check *happens-before* insert
+  - 这里要注意 check 和 insert 的并发问题，通常使用链表，那么问题就变成 load(check) 不到 store(insert)，就构成 *happens-before*。
+- `reget(k)` 要保证查询的是原来那个资源，防止ABA问题，可以考虑加上标记。即使发生ABA问题，也可能可以继续使用。
+
+简单观察易知：释放工作恰好执行一次；释放时已经不可能有线程访问该资源。
+
+#### Hazard Pointer 用法
+
+常用于固定指针的资源访问，读多写少
+
+- 读者
+  - acquire hzdptr
+  - 将要指针放入 hzdptr，并再次检查
+  - 访问数据
+  - release hzdptr
+- 写者
+  - copy旧资源，并修改，然后 CAS
+  - 将旧资源放入 retire list
+  - 进行释放工作，即 scan(check) hzdptr 链表
 
 #### Reference
 
 - [Hazard Pointers: Safe Memory Reclamation for Lock-Free Objects](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.395.378&rep=rep1&type=pdf)
 - [Lock-Free Data Structures with Hazard Pointers](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.112.6406&rep=rep1&type=pdf)
 - [P0233R6 Hazard Pointers - Safe Resource Reclamation for Optimistic Concurrency](http://www.open-std.org/jtc1/SC22/wg21/docs/papers/2017/p0233r6.pdf)
+- [Lock-free memory reclamation with hazard pointers - SO](https://stackoverflow.com/questions/25204494/lock-free-memory-reclamation-with-hazard-pointers)
 - [Hazard Pointers vs RCU](http://concurrencyfreaks.blogspot.com/2016/08/hazard-pointers-vs-rcu.html)
 - [Are Hazard Pointers Lock-Free or Wait-Free ?](http://concurrencyfreaks.blogspot.com/2016/10/are-hazard-pointers-lock-free-or-wait.html)
+- [Hazard Pointer - kongfy](http://blog.kongfy.com/2017/02/hazard-pointer/)
+- [并行编程中的内存回收Hazard Pointer](http://codemacro.com/2015/05/03/hazard-pointer/)
 
 ### Sequence Lock
 
@@ -209,7 +256,7 @@ void put(T* ptr, void(*release_callback)(T*)) {
 - [Review Checklist for RCU Patches.txt](https://www.kernel.org/doc/Documentation/RCU/checklist.txt)
 - [User-space RCU - LWN](https://lwn.net/Articles/573424/)
 - [User-space RCU - Hacker News](https://news.ycombinator.com/item?id=17743742)
-- [Read-Copy Update (RCU) for C++ - P0279R1](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0279r1.pdf)
+- [P0279R1 Read-Copy Update (RCU) for C++](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0279r1.pdf)
 - [Yet another introduction to Linux RCU.ppt](https://www.slideshare.net/vh21/yet-another-introduction-of-linux-rcu)
 - [folly/folly/synchronization/Rcu.h](https://github.com/facebook/folly/blob/master/folly/synchronization/Rcu.h)
 - [Linux 2.6内核中新的锁机制 - RCU](https://www.ibm.com/developerworks/cn/linux/l-rcu/index.html)
