@@ -47,6 +47,10 @@
 <a id="5"></a>
 ## 5 Counting
 
+- 减少 interconnection，把计算分割到局部
+- fast path 应该额外开销极小
+- slow path 允许有重开销，但是要控制其发生频率
+
 
 &nbsp;   
 <a id="6"></a>
