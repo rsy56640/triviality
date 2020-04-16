@@ -56,6 +56,24 @@
 <a id="6"></a>
 ## 6 Partitioning and Synchronization Design
 
+- 分析 workload，控制流，数据流
+- 切割任务
+- 分析开销
+  - multicore
+  - 临界区
+  - 非临界区
+  - 同步原语
+  - cacheline contention
+- 同步粒度
+  - 数据所有权
+  - 动态结构被释放，锁怎么办
+- 常用手段
+  - pthread系列（futex-based）
+  - slow path
+      - rwlock
+      - RCU
+      - 层次锁（意向锁）
+
 
 &nbsp;   
 <a id="7"></a>
