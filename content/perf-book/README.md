@@ -79,6 +79,10 @@
 <a id="7"></a>
 ## 7 Locking
 
+- futex based
+- atomic instruction based
+- 注意回调函数，信号处理函数，库函数
+
 
 &nbsp;   
 <a id="8"></a>
