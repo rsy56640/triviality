@@ -88,6 +88,10 @@
 <a id="8"></a>
 ## 8 Data Ownership
 
+- 任务切割
+  - 控制流，数据流
+- signal 输送函数
+
 
 &nbsp;   
 <a id="9"></a>
