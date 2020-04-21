@@ -229,6 +229,11 @@
 - **可嵌套的 sequence 标记**：将 seq 低若干位作为嵌套层数（默认不会溢出）。`rcu_read_lock()` 若为最外层，则存储 seq+1 到 local，否则只将 local+1；`rcu_read_unlock()` 将 local-1；`synchronize_rcu()` 将 seq+一个单位，然后等待各 thread_local 直到其 >= seq，或者读者早已离开（`rcu_gp_ongoing(t)`）
   - 通过最外层 `rcu_read_lock()` 的 store local 构建 *happens-before*（注意到只有最外层会 load seq，内层只有+1嵌套层数）
 
+#### RCU List
+
+TODO：并发语义
+
+
 #### RCU 用途
 
 若不修改间接寻址，则可以不阻塞。当然提交是否原子性要看算法逻辑了。
@@ -300,6 +305,60 @@ void put(T* ptr, void(*release_callback)(T*)) {
 &nbsp;   
 <a id="10"></a>
 ## 10 Data Structures
+
+> 脱离 **控制流** 和 **数据流** 谈论结构是没有意义的   
+> 设计之前要分析 data access pattern 和 控制流   
+> 因为没有具体的 data access pattern 本章主要分析 hash   
+
+假设 access pattern 关联性不强，那么 hash 是很好的并行数据结构选择。
+
+很多场景下，hash 作为数据结构快速检索的工具，采用了**侵入式结点设计**，要注意**并发**问题。
+
+- 考虑 NUMA，cacheline contention
+- 读侧重场景
+  - RCU
+  - hzdptr
+
+### rehash with RCU
+
+<img src="assets/Fig10.13.png" width="360"/><p/>
+
+<img src="assets/Fig10.14.png" width="360"/><p/>
+
+<img src="assets/Fig10.15.png" width="360"/><p/>
+
+<img src="assets/Fig10.16.png" width="360"/><p/>
+
+- rehash 对原来元素重新计算 hash 并分配进新的桶
+- rehash 可以与 find/add/del 并发进行
+- rehash 不更改原来链表指针结构，只更改另一条链表指针结构。所以读原来链没问题
+- 维护一个 resize_cur 表示已经重新计算到这个桶了。若查询之前的桶，可以访问新表
+- 对单条链表的 add/del 操作是上自旋锁的
+
+### 其他
+
+- trie
+  - [[patch 0/3] 2.6.17 radix-tree: updates and lockless](https://lkml.org/lkml/2006/6/20/235)
+- 平衡树
+  - [Scalable address spaces using RCU balanced trees](https://dl.acm.org/doi/10.1145/2189750.2150998)
+- 跳表
+  - [CONCURRENT MAINTENANCE OF SKIP LISTS](https://users.cs.fiu.edu/~fortega/storage/cop5725/Topic%20List%20Papers/07-oltpindexes1/pugh-concurrent-tr1990.pdf)
+
+### 数据结构实现硬件方面考虑
+
+- 尽可能将数据分割，根据竞争场景考虑并发控制的选择
+- 缓存行对齐，避免伪共享
+  - 尤其是锁与其保护的数据
+- 多读的数据放在开头，多写的数据放在末尾，较少访问的放在中间
+- 事务性内存
+
+### Reference
+
+- [Resizable, Scalable, Concurrent Hash Tables via Relativistic Programming](https://www.usenix.org/legacy/event/atc11/tech/final_files/Triplett.pdf)
+- [Re: [PATCH 6/13] bridge: Add core IGMP snooping support](https://marc.info/?l=linux-netdev&m=126860770205032&w=2)
+- [Re: [Lse-tech] Re: RFC: patch to allow lock-free traversal of lists with insertion](https://lkml.org/lkml/2001/10/13/105)
+- [URCU-protected queues and stacks - LWN](https://lwn.net/Articles/573433/)
+- [URCU-protected hash tables - LWN](https://lwn.net/Articles/573431/)
 
 
 &nbsp;   
