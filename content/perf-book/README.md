@@ -8,8 +8,12 @@
 - [9 Deferred Processing](#9)
 - [10 Data Structures](#10)
 - [11 Validation](#11)
-- [](#)
-- [](#)
+- [12 Formal Verification](#12)
+- [13 Putting It All Together](#13)
+- [14 Advanced Synchronization](#14)
+- [15 Advanced Synchronization: Memory Ordering](#15)
+- [16 Ease of Use](#16)
+- [17 Conflicting Visions of the Future](#17)
 
 ## 参考
 
@@ -367,7 +371,39 @@ void put(T* ptr, void(*release_callback)(T*)) {
 
 
 &nbsp;   
-<a id=""></a>
-## 
+<a id="12"></a>
+## 12 Formal Verification
+
+
+&nbsp;   
+<a id="13"></a>
+## 13 Putting It All Together
+
+### 常见案例
+
+- 对于共享数据的生命周期计数，获取是从容器中获取，可以考虑 RCU
+- 固定位置放多个数据，可以考虑 sequence-lock。但如果要求 txn 语义，就需要一些动态的间接寻址，这时可以考虑 RCU/hzdptr
+- 考虑 RCU 复制开销过大
+
+
+&nbsp;   
+<a id="14"></a>
+## 14 Advanced Synchronization
+
+
+&nbsp;   
+<a id="15"></a>
+## 15 Advanced Synchronization: Memory Ordering
+
+
+&nbsp;   
+<a id="16"></a>
+## 16 Ease of Use
+
+
+&nbsp;   
+<a id="17"></a>
+## 17 Conflicting Visions of the Future
+
 
 <img src="assets/.png" width="400"/>
