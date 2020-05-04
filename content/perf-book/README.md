@@ -390,6 +390,18 @@ void put(T* ptr, void(*release_callback)(T*)) {
 <a id="14"></a>
 ## 14 Advanced Synchronization
 
+### 并行实时计算
+
+<img src="assets/Fig14.4.png" width="400"/><p/>
+
+<img src="assets/Fig14.5.png" width="540"/><p/>
+
+- 事件驱动
+  - timer
+  - bottom half
+  - priority inheritence
+- 轮询
+
 
 &nbsp;   
 <a id="15"></a>
@@ -405,5 +417,3 @@ void put(T* ptr, void(*release_callback)(T*)) {
 <a id="17"></a>
 ## 17 Conflicting Visions of the Future
 
-
-<img src="assets/.png" width="400"/>
