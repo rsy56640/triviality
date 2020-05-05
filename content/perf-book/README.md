@@ -407,6 +407,90 @@ void put(T* ptr, void(*release_callback)(T*)) {
 <a id="15"></a>
 ## 15 Advanced Synchronization: Memory Ordering
 
+> 本来写了挺多，现在删了不少。这玩意神坑，慎入。
+
+### 本质上来说，在设计基于 atomic-op 的并发程序时，首先考虑整个算法的控制流程；然后给出一个伪代码的描述，并且确定哪些地方需要保证偏序关系；最后在编写程序时使用 fence 或 ordering 原语，将这些偏序关系实体化。
+
+### 基础原语和保证
+
+- 简单 load/store 是原子的
+  - [《IA32 sdm》](https://software.intel.com/en-us/articles/intel-sdm) Vol3.Ch8.1.1 Guaranteed Atomic Operations
+  - 当然 IA32 后面给了一些额外福利，我们这里忽略
+- **单个变量的写拥有 total order**
+  - [[intro.races#4 modification order]](http://eel.is/c++draft/intro.races#4)（事实上这里面问题很多）
+  - [[atomics.order#4 seq_cst]](http://eel.is/c++draft/atomics.order#4)（三不管问题的遮羞布）
+      - 这暗示了一种 linear extension：偏序是可以退化为全序的
+- **偏序关系** (*happens-before*)
+  - fence (*sequenced-before*)
+  - read from (*synchronized-with*)
+- 依赖 与 *happens-before*
+  - 对于 控制依赖 和 数据依赖，各个平台架构处理不统一
+  - 建议使用 `std::memory_order_acquire`，不推荐使用 `std::memory_order_consume`
+      - [P0668R5: Revising the C++ memory model](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0668r5.html)
+      - [P0371R1: Temporarily discourage memory_order_consume](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0371r1.html)
+      - [P0190R4: Proposal for New memory order consume Definition](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0190r4.pdf)
+      - [P0462R1: Marking memory order consume Dependency Chains](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0462r1.pdf)
+
+> relaxed 我理解大概就是   
+> 1. 一个 core 可以看到满足偏序关系的任何一种全序展开（seq_cst 是所有 core 都看到同一种）   
+> 2. 所有展开不能违背单个变量的 modification order（是否意味着 modification order 可以导致 “运行时的 *happens-before*”？）   
+
+### Reference
+
+- [[intro.races]](http://eel.is/c++draft/intro.races)
+- [[atomics.order]](http://eel.is/c++draft/atomics.order)
+- [N2153: A simple and efficient memory model for weakly-ordered architectures](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2153.pdf)
+- [N2176: Memory Model Rationales](http://open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2176.html)
+- [N2664: C++ Data-Dependency Ordering: Atomics and Memory Model](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2008/n2664.htm)
+- [P0668R5: Revising the C++ memory model](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0668r5.html)
+- [P1217R2: Out-of-thin-air, revisited, again](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1217r2.html)
+- [N3710: Specifying the absence of "out of thin air" results (LWG2265)](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3710.html)
+- [Outlawing Ghosts: Avoiding Out-of-Thin-Air Results](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/42967.pdf)
+- [P2055R0: A Relaxed Guide to memory_order_relaxed](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p2055r0.pdf)
+- [P1239R0: Placed Before](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p1239r0.html)
+- [there's a	happens-before orderhere. right?](https://www.decadent.org.uk/pipermail/cpp-threads/2008-December/001893.html)
+- [LKML: Linus Torvalds: Re: Memory corruption due to word sharing](https://lkml.org/lkml/2012/2/1/521)
+  - Linus 对于过度讨论 memory ordering 的批判。认为应该追求黑箱封装，但是无法阻挡底层社区把脏细节向上抛的趋势。本来可以把这些脏细节在某一层屏蔽抽象出来，但是底层社区为了追求一些好东西（比如性能），把这些脏细节向上抛。
+  - 原因可能在于：首先不可能要求所有 target 统一；其次，为了追求所谓的好东西，他们也不想在这层做抽象把细节屏蔽。于是就保留下来，把脏细节向上抛，并给出非常复杂的 spec。
+  - 这事实上导致了一种矛盾：从软件架构设计的角度看，其实是希望一种黑箱模块化，服务化的抽象，是把东西分解然后向下推；而把细节向上推通常会导致模块间的依赖更加复杂，甚至有可能互相渗透细节，耦合度大大增加，给理解和维护带来困难。
+- [Explicit vs implicit barriers By: Linus Torvalds](https://www.realworldtech.com/forum/?threadid=72498&curpostid=72589)
+- [Why OoO stores are evil but OoO loads are o.k.? By: Linus Torvalds](https://www.realworldtech.com/forum/?threadid=72498&curpostid=72596)
+- [Weakly ordered WC stores in Haswell By: Linus Torvalds](https://www.realworldtech.com/forum/?threadid=153317&curpostid=153438) 关于 barrier 真正需要什么
+- [Example of memory ordering causing excitement in the real world By: Linus Torvalds](https://www.realworldtech.com/forum/?threadid=151073&curpostid=151271) 为什么 weak memory model 不好
+- [N2745: Example POWER Implementation for C/C++ Memory Model](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2008/n2745.html)
+- [P0098R1: Towards Implementation and Use of memory order consume](http://www.open-std.org/jtc1/SC22/wg21/docs/papers/2016/p0098r1.pdf)
+- [LINUX KERNEL MEMORY BARRIERS](https://www.kernel.org/doc/Documentation/memory-barriers.txt)
+- [Memory barriers for TSO architectures](https://lwn.net/Articles/576486/)
+- [P0124R7: Linux-Kernel Memory Model](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p0124r7.html)
+- [A formal kernel memory-ordering model (part 1)](https://lwn.net/Articles/718628/)
+- [A formal kernel memory-ordering model (part 2)](https://lwn.net/Articles/720550/)
+- [《Intel® 64 and IA-32 Architectures Software Developer Manuals》](https://software.intel.com/en-us/articles/intel-sdm)
+- [《ARM Architecture Reference Manual ARMv7-A and ARMv7-R edition》](https://static.docs.arm.com/ddi0406/c/DDI0406C_C_arm_architecture_reference_manual.pdf)
+- [《riscv-spec》](https://github.com/riscv/riscv-isa-manual/releases)
+- [LLVM Atomic Instructions and Concurrency Guide](https://llvm.org/docs/Atomics.html)
+- [llvm/docs/Atomics.rst](https://github.com/llvm/llvm-project/blob/master/llvm/docs/Atomics.rst)
+- [C/C++11 mappings to processors](https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html)
+- [Store-to-Load Forwarding and Memory Disambiguation in x86 Processors](http://blog.stuffedcow.net/2014/01/x86-memory-disambiguation/)
+- A Memory Model for RISC-V [ppt1](https://www.bsc.es/sites/default/files/public/u1810/arvind_0.pdf), [ppt2](https://riscv.org/wp-content/uploads/2016/12/Tue1130-RISC-V-memory-model-Vijayaraghavan-MIT-V2.pdf)
+- [《Memory Consistency Models for Shared-Memory Multiprocessors - WRL Research Report 95/9》](https://www.hpl.hp.com/techreports/Compaq-DEC/WRL-95-9.pdf)
+- [A better x86 memory model: x86-TSO (extended version)](https://www.cl.cam.ac.uk/~pes20/weakmemory/x86tso-paper.pdf)
+- [A Tutorial Introduction to the ARM and POWER Relaxed Memory Models](https://www.cl.cam.ac.uk/~pes20/ppc-supplemental/test7.pdf)
+- [Relaxed-Memory Concurrency](https://www.cl.cam.ac.uk/~pes20/weakmemory/)
+- [P1875R0: Transactional Memory Lite Support in C++](http://open-std.org/JTC1/SC22/WG21/docs/papers/2019/p1875r0.pdf)
+- [P2066R1: Suggested draft TS for C++ Extensions for Minimal Transactional Memory](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p2066r1.html)
+- [Atomic/GCC/MMOptimizations/Details](https://gcc.gnu.org/wiki/Atomic/GCCMM/Optimizations/Details)
+- [The C++11 Memory Model and GCC](https://gcc.gnu.org/wiki/Atomic/GCCMM)
+- [CppMem: Interactive C/C++ memory model](http://svr-pes20-cppmem.cl.cam.ac.uk/cppmem/)
+- [Memory Barriers: a Hardware View for Software Hackers](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.152.5245&rep=rep1&type=pdf) 7.1 Alpha partitioned cache
+- [Specifying Weak Memory Consistency with Temporal Logic](https://pdfs.semanticscholar.org/19cf/98bb1a4cf0e66ed1e7780d230c96d6848052.pdf)
+- [Fences in Weak Memory Models](http://www0.cs.ucl.ac.uk/staff/J.Alglave/papers/cav10.pdf)
+- [P1135R5: The C++20 Synchronization Library](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1135r5.html)
+- [P0514R4: Efficient concurrent waiting for C++20](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0514r4.pdf)
+- [《The Architecture of the Nehalem Processor and Nehalem-EP SMP Platforms》](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.455.4198&rep=rep1&type=pdf)
+- [《Processor Microarchitecture an Implementation Perspective》](https://mcai.github.io/resources/ebooks/SLCA/Processor_Microarchitecture_an_Implementation_Perspective.pdf)
+- [《A Primer on Memory Consistency and Coherence》](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.225.9278&rep=rep1&type=pdf)
+- [preshing 系列文章](https://preshing.com/)
+
 
 &nbsp;   
 <a id="16"></a>
