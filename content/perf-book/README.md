@@ -501,3 +501,16 @@ void put(T* ptr, void(*release_callback)(T*)) {
 <a id="17"></a>
 ## 17 Conflicting Visions of the Future
 
+### Hardware Transactional Memory
+
+- 要求占有全部缓存行
+- 冲突处理：read/write set
+- abort / rollback
+- 中断，陷阱，异常
+- 向前执行保证
+
+<p/><img src="assets/Table17.1.png" width="900"/>
+
+<p/><img src="assets/Table17.2.png" width="900"/>
+
+<p/><img src="assets/Table17.3.png" width="1440"/>
