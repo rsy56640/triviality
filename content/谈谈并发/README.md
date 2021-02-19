@@ -575,6 +575,8 @@ void put(T* ptr, void(*release_callback)(T*)) {
 - [How different is a futex from mutex - conceptually and also implementation wise?](https://www.quora.com/How-different-is-a-futex-from-mutex-conceptually-and-also-implementation-wise)
 - [Thin Lock vs. Futex](https://bartoszmilewski.com/2008/09/01/thin-lock-vs-futex/)
 - [Condition variable with futex](https://www.remlab.net/op/futex-condvar.shtml)
+- [探究 “条件变量signal时是否需要持有mutex” - rsy56640](https://blog.csdn.net/rsy56640/article/details/84953204)
+- [basic question about concurrency - Dave Butenhof 谈历史与妥协](https://groups.google.com/g/comp.programming.threads/c/wEUgPq541v8/m/ZByyyS8acqMJ)
 
 ### atomic
 
@@ -583,7 +585,7 @@ void put(T* ptr, void(*release_callback)(T*)) {
 - [N2153: A simple and efficient memory model for weakly-ordered architectures](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2153.pdf)
 - [N2176: Memory Model Rationales](http://open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2176.html)
 - [N2664: C++ Data-Dependency Ordering: Atomics and Memory Model](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2008/n2664.htm)
-- [P0668R5: Revising the C++ memory model](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0668r5.html)
+- [P0668R5: Revising the C++ memory model](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0668r5.html) 神坑
 - [P1217R2: Out-of-thin-air, revisited, again](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1217r2.html)
 - [N3710: Specifying the absence of "out of thin air" results (LWG2265)](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3710.html)
 - [Outlawing Ghosts: Avoiding Out-of-Thin-Air Results](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/42967.pdf)
@@ -632,6 +634,22 @@ void put(T* ptr, void(*release_callback)(T*)) {
 - [《A Primer on Memory Consistency and Coherence》](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.225.9278&rep=rep1&type=pdf)
 - [preshing 系列文章](https://preshing.com/)
 
+#### 不要使用 Memory Order Consume
+
+- [[cpp-threads] [Javamemorymodel-discussion] there's	a	happens-before orderhere. right?](https://www.decadent.org.uk/pipermail/cpp-threads/2008-December/001918.html)
+- [P0371R1: Temporarily discourage memory_order_consume](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0371r1.html)
+- [P0190R4: Proposal for New memory order consume Definition](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0190r4.pdf)
+- [P0462R1: Marking memory order consume Dependency Chains](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0462r1.pdf)
+- [p0750r1 Consume](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0750r1.html)
+- [[4.2 Control Dependency] A Tutorial Introduction to the ARM and POWER Relaxed Memory Models](https://www.cl.cam.ac.uk/~pes20/ppc-supplemental/test7.pdf)
+
+#### Atomic-based Synchronization
+
+- [Ticket spinlocks - LWN](https://lwn.net/Articles/267968/)
+- [Improving ticket spinlocks - LWN](https://lwn.net/Articles/531254/)
+- [MCS locks and qspinlocks - LWN](https://lwn.net/Articles/590243/)
+- [Fast reader/writer locks - LWN](https://lwn.net/Articles/21379/)
+
 #### Hazard Pointer
 
 - [Hazard Pointers: Safe Memory Reclamation for Lock-Free Objects](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.395.378&rep=rep1&type=pdf)
@@ -645,7 +663,9 @@ void put(T* ptr, void(*release_callback)(T*)) {
 
 #### RCU
 
+- [RCU concepts](https://www.kernel.org/doc/html/latest/RCU/index.html)
 - [linux/Documentation/RCU](https://github.com/torvalds/linux/tree/master/Documentation/RCU)
+- [Read the Fscking Papers!](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/RCU/RTFP.txt)
 - [What is RCU?.txt](https://www.kernel.org/doc/Documentation/RCU/whatisRCU.txt)
 - [A Tour Through RCU's Requirements](https://www.kernel.org/doc/Documentation/RCU/Design/Requirements/Requirements.html)
 - [Introduction to RCU](http://www2.rdrop.com/users/paulmck/RCU/)
@@ -667,8 +687,10 @@ void put(T* ptr, void(*release_callback)(T*)) {
 - [Linux2.6.23 ：sleepable RCU的实现](http://www.wowotech.net/kernel_synchronization/linux2-6-23-RCU.html)
 - [Verification of Tree-Based Hierarchical Read-Copy Update in the Linux Kernel](http://www.kroening.com/papers/date2018-rcu.pdf)
 - [Supplementary Material for User-Level Implementations of Read-Copy Update](https://www.researchgate.net/publication/228865533_Supplementary_Material_for_User-Level_Implementations_of_Read-Copy_Update)
+- [What is RCU's Area of Applicability?](https://mirrors.edge.kernel.org/pub/linux/kernel/people/paulmck/Answers/RCU/RCUAreaApp.html)
+- [Re: [Lse-tech] Re: RFC: patch to allow lock-free traversal of lists with insertion](https://lkml.org/lkml/2001/10/13/105) 早期对 RCU 的态度
 
-#### Other
+#### Volatile
 
 - [P1152R4 Deprecating volatile](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1152r4.html)
 - [P1382R1 volatile_load<T> and volatile_store<T>](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1382r1.pdf)
