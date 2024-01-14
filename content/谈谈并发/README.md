@@ -98,6 +98,14 @@ void unlock(){
 可以看出，将“锁被持有”分割成两种状态的意义是：减少 `unlock()` 时非必需的 `futex_wake()` 系统调用开销。   
 对应的，`lock()` 会相应的绕一点。   
 
+> 补充阅读材料，只能说不建议这么写：
+
+- [A surprise with mutexes and reference counts](https://lwn.net/Articles/575460/)
+- [[3.10] Oopses in kmem_cache_allocate() via prepare_creds()](https://groups.google.com/g/linux.kernel/c/QIuf1FuE_aQ)
+- [Re: Found it! (was Re: [3.10] Oopses in kmem_cache_allocate() via prepare_creds())](https://lwn.net/Articles/575477/)
+- [Found it! (was Re: [3.10] Oopses in kmem_cache_allocate() via prepare_creds())](https://lore.kernel.org/lkml/CA+55aFyez7uZ6LeXrBRCqJzgJ=w4Xv+CV6QSYp5NkOJ2R9Xang@mail.gmail.com/)
+- [Re: Found it! (was Re: [3.10] Oopses in kmem_cache_allocate() via prepare_creds())](https://lore.kernel.org/lkml/CA+55aFyhzvJrCiJOqUgL-98=MVutWePToQXaVfS2j6e5eetJSw@mail.gmail.com/)
+
 <a id="cond_var"></a>
 ### conditional_varialble
 
